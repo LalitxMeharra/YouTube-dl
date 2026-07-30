@@ -1,12 +1,10 @@
 from flask import Flask, request, jsonify, Response
-import yt_dlp
 import requests
-import os
 
 app = Flask(__name__)
 
-# cookies.txt ka path set karein
-COOKIE_PATH = os.path.join(os.path.dirname(__file__), '..', 'cookies.txt')
+# Public Cobalt Instance Endpoint
+COBALT_API_URL = "https://co.wuk.sh/api/json"
 
 @app.route('/api/get-info', methods=['POST'])
 def get_info():
@@ -16,24 +14,72 @@ def get_info():
     if not video_url:
         return jsonify({'error': 'URL enter karein!'}), 400
 
-    ydl_opts = {
-        'quiet': True,
-        'no_warnings': True,
-        'format': 'best',
-        'cookiefile': COOKIE_PATH,  # <--- Netscape cookies file setup
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9',
-        }
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "url": video_url,
+        "vQuality": "max"
     }
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(video_url, download=False)
-            
-            title = info.get('title', 'Media_File')
-            duration = info.get('duration_string', '00:00')
+        # Request stream data via Cobalt Engine
+        response = requests.post(COBALT_API_URL, json=payload, headers=headers)
+        res_data = response.json()
 
+        if response.status_code != 200 or res_data.get('status') == 'error':
+            error_msg = res_data.get('text', 'Failed to process URL')
+            return jsonify({'error': error_msg}), 400
+
+        # Extract Stream Info
+        download_stream_url = res_data.get('url')
+        title = res_data.get('filename', 'YouTube_Media')
+
+        video_formats = [
+            {'quality': '1080p Full HD', 'download_url': f"/api/download?url={requests.utils.quote(download_stream_url)}&filename={requests.utils.quote(title + '.mp4')}"},
+            {'quality': '720p HD', 'download_url': f"/api/download?url={requests.utils.quote(download_stream_url)}&filename={requests.utils.quote(title + '_720p.mp4')}"},
+            {'quality': '480p SD', 'download_url': f"/api/download?url={requests.utils.quote(download_stream_url)}&filename={requests.utils.quote(title + '_480p.mp4')}"}
+        ]
+
+        audio_formats = [
+            {'quality': '320 kbps High', 'download_url': f"/api/download?url={requests.utils.quote(download_stream_url)}&filename={requests.utils.quote(title + '.mp3')}"},
+            {'quality': '128 kbps Medium', 'download_url': f"/api/download?url={requests.utils.quote(download_stream_url)}&filename={requests.utils.quote(title + '_128k.mp3')}"}
+        ]
+
+        return jsonify({
+            'title': title,
+            'duration': 'Media Stream',
+            'preview_url': download_stream_url,
+            'video_formats': video_formats,
+            'audio_formats': audio_formats
+        })
+
+    except Exception as e:
+        return jsonify({'error': f"Server error: {str(e)}"}), 500
+
+
+@app.route('/api/download', methods=['GET'])
+def force_download():
+    media_url = request.args.get('url')
+    filename = request.args.get('filename', 'download.mp4')
+
+    if not media_url:
+        return "Missing URL", 400
+
+    try:
+        req = requests.get(media_url, stream=True)
+        headers = {
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Type": req.headers.get("Content-Type", "application/octet-stream")
+        }
+        return Response(req.iter_content(chunk_size=1024*1024), headers=headers)
+    except Exception as e:
+        return str(e), 500
+
+def handler(request, response):
+    return app(request, response)
             video_formats = []
             audio_formats = []
             seen_resolutions = set()
