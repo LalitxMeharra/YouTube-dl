@@ -1,7 +1,0 @@
-# Netscape HTTP Cookie File
-# https://curl.haxx.se/rfc/cookie_spec.html
-# This is a generated file! Do not edit.
-
-.youtube.com	TRUE	/	FALSE	1793151525	_gcl_au	1.1.2043343095.1785375525
-.youtube.com	TRUE	/	TRUE	1785412868	GPS	1
-.youtube.com	TRUE	/	TRUE	1819971618	PREF	repeat=NONE&autoplay=true&f6=40000000&tz=Asia.Calcutta&f4=4000000&f7=100
