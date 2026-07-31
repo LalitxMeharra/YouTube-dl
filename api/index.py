@@ -17,17 +17,16 @@ if os.path.exists(BUNDLED_COOKIES) and not os.path.exists(COOKIES_PATH):
     shutil.copy(BUNDLED_COOKIES, COOKIES_PATH)
 
 # Logged-in cookies are what actually gets past YouTube's bot-check on
-# datacenter IPs (Vercel). android/ios client spoofing is kept as a
-# secondary signal but cookies do the real work now.
+# datacenter IPs (Vercel). Note: android/ios client spoofing is NOT used
+# here because yt-dlp skips those clients entirely when cookies are set
+# ("does not support cookies"), which left us with zero usable formats.
+# format='best' picks a single progressive stream so no ffmpeg merge step
+# is needed (Vercel has no ffmpeg binary available).
 YDL_OPTS = {
     'quiet': True,
     'no_warnings': True,
     'skip_download': True,
-    'extractor_args': {
-        'youtube': {
-            'player_client': ['android', 'ios'],
-        }
-    },
+    'format': 'best',
 }
 
 if os.path.exists(COOKIES_PATH):
