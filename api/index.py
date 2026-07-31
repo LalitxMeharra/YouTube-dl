@@ -3,9 +3,18 @@ from flask import Flask, request, jsonify, Response
 import yt_dlp
 import requests
 
+import shutil
+
 app = Flask(__name__)
 
-COOKIES_PATH = os.path.join(os.path.dirname(__file__), 'cookies.txt')
+BUNDLED_COOKIES = os.path.join(os.path.dirname(__file__), 'cookies.txt')
+# Vercel's project directory is read-only at runtime (only /tmp is writable).
+# yt-dlp needs to write back to the cookie jar after use, so we copy the
+# bundled cookies file into /tmp on cold start and point yt-dlp there.
+COOKIES_PATH = '/tmp/cookies.txt'
+
+if os.path.exists(BUNDLED_COOKIES) and not os.path.exists(COOKIES_PATH):
+    shutil.copy(BUNDLED_COOKIES, COOKIES_PATH)
 
 # Logged-in cookies are what actually gets past YouTube's bot-check on
 # datacenter IPs (Vercel). android/ios client spoofing is kept as a
